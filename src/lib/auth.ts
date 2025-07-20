@@ -113,9 +113,11 @@ export async function hashPassword(password: string): Promise<string> {
 // Session Management //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+// Create Session ...............................................................
 export type UserSessionData = {
-  user_id: string;
+  id: string;
   username: string;
+  theme?: string;
 };
 
 /**
@@ -136,7 +138,7 @@ export async function useAuthSession() {
     throw error;
   }
 }
-
+// Read Session (Get) ...........................................................
 /**
  * Get the current user session data
  *
@@ -146,18 +148,41 @@ export async function getUserSession(): Promise<UserSessionData | null> {
   "use server";
   try {
     const session = await useAuthSession();
-    return session.data || null;
+    // Check if session.data exists and has required user properties
+    if (session.data && session.data.id && session.data.username) {
+      return session.data;
+    }
+
+    // WARNING session.data = {} by default, which is truthy, leading to all users being
+    // valid!
+    // return session.data || null;
+
+
+    return null;
   } catch (error) {
     console.error("Error getting user session: ", error);
     return null;
   }
 }
+// Update Session ...............................................................
+// Not implemented, just use .update, see <https://docs.solidjs.com/solid-start/advanced/session>
+// Delete Session (Logout) ......................................................
+export async function clearAuthSessionLougout() {
+  "use server";
+  const session = await useAuthSession();
+  await session.clear();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Users Registration //////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 interface RegistrationMessage {
   success: boolean;
   error?: string;
 }
 
+// Create User (Register) .......................................................
 /**
  * Adds a user to the database
  *
@@ -165,7 +190,7 @@ interface RegistrationMessage {
  * @param password - The plain text password for the new user account
  * @returns Promise that resolves to a RegistrationMessage indicating success or failure
  */
-async function registerUser(
+export async function registerUser(
   username: string,
   password: string,
 ): Promise<RegistrationMessage> {
@@ -198,15 +223,15 @@ async function registerUser(
     };
   }
 }
-
+// Read user (Login) ............................................................
 /**
- * Checks user details against the database
+ * Checks user details against the database and creates an Auth Session for the client
  *
  * @param username - The username of the user attempting to log in
  * @param password - The plain text password for authentication
  * @returns Promise that resolves to an object indicating success or failure with error message
  */
-async function loginUser(username: string, password: string) {
+export async function loginUser(username: string, password: string) {
   "use server";
   try {
     const db = await getAuthDb();
@@ -216,20 +241,103 @@ async function loginUser(username: string, password: string) {
       return { success: false, error: "Error, user does not exists" };
     }
     // Compare the password
-    const isVerified = verifyPassword(
+    const isVerified = await verifyPassword(
       password,
       await getStoredPasswordHash(userId),
     );
     // Drop password
     password = "";
 
+    if (!isVerified) {
+      return { success: false, error: "Invalid password" };
+    }
+
     // Create the session
     const session = await useAuthSession();
-    session.update({ user_id: userId, username: username });
+    await session.update({ id: userId, username: username });
     return { success: true };
   } catch (error) {
     const error_msg = `Error Logging in User: ${error}`;
     console.error(error_msg);
     return { success: false, error: error_msg };
+  }
+}
+
+// Update User (Change Password) ................................................
+/**
+ * Update a user's password in the database
+ *
+ * @param userId - The unique identifier of the user to update
+ * @param newPassword - The new plain text password for the user
+ * @returns Promise that resolves to a RegistrationMessage indicating success or failure
+ */
+async function updateUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<RegistrationMessage> {
+  "use server";
+  try {
+    const db = await getAuthDb();
+
+    // Check if the user exists
+    const result = db
+      .prepare(`SELECT id FROM users WHERE id = ?`)
+      .get(userId) as { id: string } | undefined;
+
+    if (!result) {
+      return { success: false, error: "Error, user does not exist" };
+    }
+
+    // Hash the new password
+    const hash = await hashPassword(newPassword);
+    // Drop password
+    newPassword = "";
+
+    // Update the user's password in the database
+    db.prepare(`UPDATE users SET pass_hash = ? WHERE id = ?`).run(hash, userId);
+
+    console.log("User Password Successfully Updated: ", userId);
+    return { success: true };
+  } catch (error) {
+    console.log("Error Updating User Password: ", error);
+    return {
+      success: false,
+      error: `Failed to update password for user ${userId}: ${error}`,
+    };
+  }
+}
+
+// Delete User ..................................................................
+/**
+ * Delete a user from the database
+ *
+ * @param userId - The unique identifier of the user to delete
+ * @returns Promise that resolves to an object indicating success or failure with error message
+ */
+async function deleteUser(userId: string): Promise<RegistrationMessage> {
+  "use server";
+  try {
+    const db = await getAuthDb();
+
+    // Check if the user exists
+    const result = db
+      .prepare(`SELECT id FROM users WHERE id = ?`)
+      .get(userId) as { id: string } | undefined;
+
+    if (!result) {
+      return { success: false, error: "Error, user does not exist" };
+    }
+
+    // Delete the user from the database
+    db.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
+
+    console.log("User Successfully Deleted: ", userId);
+    return { success: true };
+  } catch (error) {
+    console.log("Error Deleting User: ", error);
+    return {
+      success: false,
+      error: `Failed to delete user ${userId}: ${error}`,
+    };
   }
 }

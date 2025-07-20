@@ -9,6 +9,7 @@
   "dependencies": {
     "@solidjs/router": "^0.15.0",
     "@solidjs/start": "^1.1.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.13",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^12.2.0",
