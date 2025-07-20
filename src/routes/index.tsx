@@ -35,7 +35,7 @@ const getPageData = query(async function () {
   const notes = await readNote(1, user.id);
   // Add more queries here as needed:
   // const tags = await readTags(user.id);
-  
+
   return { notes, user };
 }, "PageData");
 

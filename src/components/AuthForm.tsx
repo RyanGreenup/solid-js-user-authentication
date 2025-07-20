@@ -13,11 +13,12 @@ export default function AuthForm(props: AuthFormProps): JSXElement {
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
-    
-    const result = props.type === "login" 
-      ? await loginUser(username(), password())
-      : await registerUser(username(), password());
-    
+
+    const result =
+      props.type === "login"
+        ? await loginUser(username(), password())
+        : await registerUser(username(), password());
+
     if (result.success) {
       navigate("/");
     } else {
