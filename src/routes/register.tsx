@@ -1,13 +1,13 @@
 import { createSignal, JSXElement, onMount } from "solid-js";
-import { loginUser } from "~/lib/auth";
+import { loginUser, registerUser } from "~/lib/auth";
 
-export default function LoginPage(): JSXElement {
+export default function RegisterPage(): JSXElement {
   const [username, setUsername] = createSignal<string>("");
   const [password, setPassword] = createSignal<string>("");
 
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
-    const result = await loginUser(username(), password());
+    const result = await registerUser(username(), password());
     alert(JSON.stringify(result));
     console.log(username, password);
   };
@@ -59,7 +59,7 @@ export default function LoginPage(): JSXElement {
       <div>
         <input
           type="submit"
-          value="Sign in"
+          value="Register"
           class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded cursor-pointer"
         />
       </div>
