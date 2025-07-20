@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import Database, { Database as DatabaseType } from "better-sqlite3";
 import { useSession } from "vinxi/http";
+const REGISTRATION_OPEN = false;
 
 let db: DatabaseType | null = null;
 
@@ -155,14 +156,18 @@ export async function useAuthSession() {
   }
 }
 // Read Session (Get) ...........................................................
+
 /**
  * Get the current user data from the Session
  *
- * Do not rely on merely getting the session
- *    1. session.data = {} which is truth
+ * Do not rely on getting all the user details from the session:
+ *    1. session.data = {} which is truthy -- confusing
  *    2. The user could have been removed from the db
- *    3. User details may have changed
- *        - These need to be pulled out of the db
+ *        - Whilst the session is still valid, checking the Auth db for additional
+ *          details throughout increases the likelihood of invalidating an unauthorized
+ *          user with a valid cookie (due to max-time)
+ *    3. User details / priviliges may have changed from elsewhere
+ *        - Get this straight from the source
  * @returns Promise that resolves to the user session data if authenticated, or null if not authenticated
  */
 export async function getUser(): Promise<User | null> {
@@ -229,6 +234,9 @@ export async function registerUser(
   password: string,
 ): Promise<RegistrationMessage> {
   "use server";
+  if (process.env.REGISTRATION_ENABLED !== "true") {
+    return { success: false, error: "Registration is currently closed" };
+  }
   try {
     const db = await getAuthDb();
     // Check if the user already exists

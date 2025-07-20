@@ -1,5 +1,5 @@
 import { createAsync, query, redirect } from "@solidjs/router";
-import { Show, Suspense } from "solid-js";
+import { Show } from "solid-js";
 import { getUser } from "~/lib/auth";
 import { readNote } from "~/lib/db";
 
@@ -24,27 +24,31 @@ function PrivateDataCard({ data }: { data: any }) {
   );
 }
 
-const getPrivatePosts = query(async function () {
+const getPageData = query(async function () {
   "use server";
   const user = await getUser();
   if (!user) {
     throw redirect("/login");
   }
 
-  return readNote(1, user.id);
-}, "AuthCheck");
+  // Execute all queries with the same user_id
+  const notes = await readNote(1, user.id);
+  // Add more queries here as needed:
+  // const tags = await readTags(user.id);
+  
+  return { notes, user };
+}, "PageData");
 
 export default function Home() {
-  const note_id = 1;
-  const note = createAsync(() => getPrivatePosts());
+  const pageData = createAsync(() => getPageData());
 
   // Although the Docs suggest Suspense, it flashes the page to the user
   // Show is more protective.
   return (
     <main class="text-center mx-auto text-gray-700 p-4">
-        <Show when={note()} fallback={<LoadingSpinner />}>
-          <PrivateDataCard data={note()} />
-        </Show>
+      <Show when={pageData()} fallback={<LoadingSpinner />}>
+        <PrivateDataCard data={pageData()?.notes} />
+      </Show>
     </main>
   );
 }

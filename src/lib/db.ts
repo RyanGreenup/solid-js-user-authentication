@@ -7,16 +7,15 @@ let db: DatabaseType | null = null;
 /**
  * Initializes the database if needed (creates DB file and schema)
  */
-async function getDb(): Promise<DatabaseType | null> {
+async function getDb(user_id: string): Promise<DatabaseType | null> {
   "use server";
-  // Do not give back the connection if the user is not authorized at all
-  const user = await getUser();
-  if (!user || !user.id) {
-    console.error(
-      "Database access denied: User is not authenticated or missing user ID",
-    );
+  // Check if the user has permission to connect to the database
+  if (!user_id) {
+    // Assume all valid users can connect to the database
+    // Could check the users database to check for this permission
     return null;
   }
+
   // If the database hasn't been loaded yet
   if (!db) {
     // Get the path
@@ -46,11 +45,18 @@ async function getDb(): Promise<DatabaseType | null> {
 }
 
 export async function readNote(
-  id: number,
-): Promise<{ id: number; title: string; body: string } | undefined> {
+  note_id: number,
+  user_id: string,
+): Promise<{ id: number; title: string; body: string } | undefined | null> {
   "use server";
+  // Check if the user has permission to read any notes at all
+  if (!user_id) {
+    // Assume all valid users can read some notes
+    return null;
+  }
+
   // Connect to the db
-  const db = await getDb();
+  const db = await getDb(user_id);
   if (!db) {
     return undefined;
   }
@@ -61,8 +67,9 @@ export async function readNote(
     return undefined;
   }
 
+  // Here we would pass user_id to implement Row Level Security
   const stmt = db.prepare("SELECT * FROM notes WHERE id = ?");
-  const result = stmt.get(id) as
+  const result = stmt.get(note_id) as
     | { id: number; title: string; body: string }
     | undefined;
   return result;
