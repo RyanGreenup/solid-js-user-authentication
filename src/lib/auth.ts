@@ -149,6 +149,11 @@ export async function useAuthSession() {
     return await useSession<UserSessionData>({
       password: process.env.SESSION_SECRET as string,
       name: "auth_session",
+      cookie: {
+        secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+        httpOnly: true,
+        sameSite: "lax",
+      },
     });
   } catch (error) {
     console.error("session error for auth: ", error);

@@ -647,6 +647,16 @@ Instead, use only the `id` from the session data and fetch the remaining details
 > `await useAuthSession().data` is always `true`. Always retrieve user details
 > from the database to get current details such as access control
 
+> [!NOTE] If this won't run over SSL (e.g. VPN) then enable httpOnly cookies:
+>
+> ```ts
+>      cookie: {
+>        secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+>        httpOnly: true,
+>        sameSite: "lax",
+>      },
+> ```
+
 ```ts
 ////////////////////////////////////////////////////////////////////////////////
 // Session Management //////////////////////////////////////////////////////////
@@ -666,11 +676,17 @@ export type UserSessionData = {
  * @throws Error if session creation fails or SESSION_SECRET env var is not set
  */
 export async function useAuthSession() {
+
   "use server";
   try {
     return await useSession<UserSessionData>({
       password: process.env.SESSION_SECRET as string,
       name: "auth_session",
+      cookie: {
+        secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+        httpOnly: true,
+        sameSite: "lax",
+      },
     });
   } catch (error) {
     console.error("session error for auth: ", error);
