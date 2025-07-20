@@ -1,7 +1,7 @@
 import { createAsync, query, redirect } from "@solidjs/router";
 import { Show } from "solid-js";
 import { getUser } from "~/lib/auth";
-import { readNote } from "~/lib/db";
+import { listNotes } from "~/lib/db";
 
 // Loading component
 function LoadingSpinner() {
@@ -32,7 +32,7 @@ const getPageData = query(async function () {
   }
 
   // Execute all queries with the same user_id
-  const notes = await readNote(1, user.id);
+  const notes = await listNotes(user.id);
   // Add more queries here as needed:
   // const tags = await readTags(user.id);
 
