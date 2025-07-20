@@ -1,9 +1,15 @@
-import { createResource, Suspense } from "solid-js";
+import { createAsync, query, redirect } from "@solidjs/router";
+import { Show, Suspense } from "solid-js";
+import { getUser } from "~/lib/auth";
 import { readNote } from "~/lib/db";
 
 // Loading component
 function LoadingSpinner() {
-  return <p>Loading...</p>;
+  return (
+    <main class="text-center mx-auto text-gray-700 p-4">
+      <p>Checking Auth...</p>
+    </main>
+  );
 }
 
 // Private data display component
@@ -18,23 +24,27 @@ function PrivateDataCard({ data }: { data: any }) {
   );
 }
 
-// Note display component
-function NoteDisplay({ noteId }: { noteId: number }) {
-  const [note] = createResource(noteId, readNote);
+const getPrivatePosts = query(async function () {
+  "use server";
+  const user = await getUser();
+  if (!user) {
+    throw redirect("/login");
+  }
 
-  return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <PrivateDataCard data={note()} />
-    </Suspense>
-  );
-}
+  return readNote(1, user.id);
+}, "AuthCheck");
 
 export default function Home() {
   const note_id = 1;
+  const note = createAsync(() => getPrivatePosts());
 
+  // Although the Docs suggest Suspense, it flashes the page to the user
+  // Show is more protective.
   return (
     <main class="text-center mx-auto text-gray-700 p-4">
-      <NoteDisplay noteId={note_id} />
+        <Show when={note()} fallback={<LoadingSpinner />}>
+          <PrivateDataCard data={note()} />
+        </Show>
     </main>
   );
 }

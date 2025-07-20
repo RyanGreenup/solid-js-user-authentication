@@ -114,9 +114,25 @@ export async function hashPassword(password: string): Promise<string> {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Create Session ...............................................................
-export type UserSessionData = {
+
+//
+
+/**
+ * User details as stored in the Auth database
+ */
+export type User = {
   id: string;
   username: string;
+};
+
+/**
+ * Information used to identify a user in the Auth Database
+ *
+ * Also includes current but fleeting details about the current
+ * session such as the theme
+ */
+export type UserSessionData = {
+  id: string;
   theme?: string;
 };
 
@@ -140,25 +156,43 @@ export async function useAuthSession() {
 }
 // Read Session (Get) ...........................................................
 /**
- * Get the current user session data
+ * Get the current user data from the Session
  *
+ * Do not rely on merely getting the session
+ *    1. session.data = {} which is truth
+ *    2. The user could have been removed from the db
+ *    3. User details may have changed
+ *        - These need to be pulled out of the db
  * @returns Promise that resolves to the user session data if authenticated, or null if not authenticated
  */
-export async function getUserSession(): Promise<UserSessionData | null> {
+export async function getUser(): Promise<User | null> {
   "use server";
   try {
     const session = await useAuthSession();
-    // Check if session.data exists and has required user properties
-    if (session.data && session.data.id && session.data.username) {
-      return session.data;
+
+    // If no session data or no user id, return null
+    if (!session.data || !session.data.id) {
+      return null;
     }
 
-    // WARNING session.data = {} by default, which is truthy, leading to all users being
-    // valid!
-    // return session.data || null;
+    const db = await getAuthDb();
+    const result = db
+      .prepare(`SELECT id, username FROM users WHERE id = ?`)
+      .get(session.data.id) as { id: string; username: string } | undefined;
 
+    if (!result) {
+      // Don't clear session here as it may cause headers to be sent twice
+      // The session will be invalid anyway since the user doesn't exist
+      return null;
+    }
 
-    return null;
+    // Build and return user object with current data from database
+    const userData: User = {
+      id: result.id,
+      username: result.username,
+    };
+
+    return userData;
   } catch (error) {
     console.error("Error getting user session: ", error);
     return null;
@@ -167,7 +201,7 @@ export async function getUserSession(): Promise<UserSessionData | null> {
 // Update Session ...............................................................
 // Not implemented, just use .update, see <https://docs.solidjs.com/solid-start/advanced/session>
 // Delete Session (Logout) ......................................................
-export async function clearAuthSessionLougout() {
+export async function clearAuthSessionLogout() {
   "use server";
   const session = await useAuthSession();
   await session.clear();

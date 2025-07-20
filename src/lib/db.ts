@@ -1,6 +1,6 @@
 import Database, { Database as DatabaseType } from "better-sqlite3";
 import * as fs from "fs";
-import { getUserSession } from "./auth";
+import { getUser } from "./auth";
 
 let db: DatabaseType | null = null;
 
@@ -10,7 +10,7 @@ let db: DatabaseType | null = null;
 async function getDb(): Promise<DatabaseType | null> {
   "use server";
   // Do not give back the connection if the user is not authorized at all
-  const user = await getUserSession();
+  const user = await getUser();
   if (!user || !user.user_id) {
     console.error(
       "Database access denied: User is not authenticated or missing user ID",
@@ -56,7 +56,7 @@ export async function readNote(
   }
   // Get the user id to filter the database with (RLS)
   // (Not implemented here, but use a `WHERE = ...`
-  const user = await getUserSession();
+  const user = await getUser();
   if (!user) {
     return undefined;
   }
