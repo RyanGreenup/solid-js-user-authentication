@@ -11,7 +11,7 @@ async function getDb(): Promise<DatabaseType | null> {
   "use server";
   // Do not give back the connection if the user is not authorized at all
   const user = await getUser();
-  if (!user || !user.user_id) {
+  if (!user || !user.id) {
     console.error(
       "Database access denied: User is not authenticated or missing user ID",
     );
@@ -60,7 +60,6 @@ export async function readNote(
   if (!user) {
     return undefined;
   }
-  const userId = user.user_id;
 
   const stmt = db.prepare("SELECT * FROM notes WHERE id = ?");
   const result = stmt.get(id) as
