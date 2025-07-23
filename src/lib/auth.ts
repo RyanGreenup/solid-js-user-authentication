@@ -1,7 +1,8 @@
+import { createAsync, redirect } from "@solidjs/router";
 import bcrypt from "bcrypt";
 import Database, { Database as DatabaseType } from "better-sqlite3";
+import { JSXElement } from "solid-js";
 import { useSession } from "vinxi/http";
-const REGISTRATION_OPEN = false;
 
 let db: DatabaseType | null = null;
 
@@ -150,7 +151,9 @@ export async function useAuthSession() {
       password: process.env.SESSION_SECRET as string,
       name: "auth_session",
       cookie: {
-        secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "true",
+        secure:
+          process.env.NODE_ENV === "production" &&
+          process.env.FORCE_HTTPS === "true",
         httpOnly: true,
         sameSite: "lax",
       },
@@ -301,7 +304,7 @@ export async function loginUser(username: string, password: string) {
 
     // Create the session
     const session = await useAuthSession();
-    await session.update({ id: userId, username: username });
+    await session.update({ id: userId });
     return { success: true };
   } catch (error) {
     const error_msg = `Error Logging in User: ${error}`;
