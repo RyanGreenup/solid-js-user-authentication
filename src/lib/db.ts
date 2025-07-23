@@ -1,20 +1,24 @@
 import Database, { Database as DatabaseType } from "better-sqlite3";
 import * as fs from "fs";
+import { getUser } from "./auth";
+import { query, redirect } from "@solidjs/router";
 
 let db: DatabaseType | null = null;
 
 /**
  * Initializes the database if needed (creates DB file and schema)
  */
-async function getDb(user_id: string): Promise<DatabaseType | null> {
+async function getDb(): Promise<DatabaseType | null> {
   "use server";
-  // Check if the user has permission to connect to the database
-  if (!user_id) {
-    // Assume all valid users can connect to the database
-    // Could check the users database to check for this permission
+  // Do not give back the connection if the user is not authorized at all
+  // Only users have need for a db connection
+  const user = await getUser();
+  if (!user || !user.id) {
+    console.error(
+      "Database access denied: User is not authenticated or missing user ID",
+    );
     return null;
   }
-
   // If the database hasn't been loaded yet
   if (!db) {
     // Get the path
@@ -30,58 +34,77 @@ async function getDb(user_id: string): Promise<DatabaseType | null> {
     if (isNewDb) {
       db.exec(`
         CREATE TABLE notes (
-          id TEXT NOT NULL PRIMARY KEY DEFAULT (hex(randomblob(16))),
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           title TEXT NOT NULL,
-          body TEXT NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          body TEXT NOT NULL
         );
-        INSERT INTO notes (id, title, body) VALUES
-          (hex(randomblob(16)), 'First Note', 'This is the first note in the database.'),
-          (hex(randomblob(16)), 'Second Note', 'This is the second note for demonstration purposes.');
+        INSERT INTO notes (title, body) VALUES
+          ('First Note', 'This is the first note in the database.'),
+          ('Second Note', 'This is the second note for demonstration purposes.');
       `);
     }
   }
   return db;
 }
 
-export async function listNotes(
-  user_id: string,
-): Promise<{ id: string; title: string; body: string }[]> {
+/**
+ * Read the note from the database based on id and user id
+ *
+ */
+const getNote = query(async function (
+  id: number,
+): Promise<{ id: number; title: string; body: string } | undefined> {
   "use server";
-  if (!user_id) {
-    return [];
+
+  const user = await getUser();
+
+  // NOTE could also use RLS, be mindful of SQL injection though
+  if (!user || !user.id) {
+    throw redirect("/login");
+    // return undefined;
   }
 
-  const db = await getDb(user_id);
-  if (!db) {
-    return [];
-  }
-
-  const stmt = db.prepare("SELECT * FROM notes ORDER BY created_at DESC");
-  const results = stmt.all() as { id: string; title: string; body: string }[];
-  return results;
-}
-
-export async function readNote(
-  note_id: string,
-  user_id: string,
-): Promise<{ id: string; title: string; body: string } | undefined | null> {
-  "use server";
-  if (!user_id) {
-    return null;
-  }
-
-  const db = await getDb(user_id);
+  // Connect to the db
+  const db = await getDb();
   if (!db) {
     return undefined;
   }
 
-  // Here we would pass user_id to implement Row Level Security
   const stmt = db.prepare("SELECT * FROM notes WHERE id = ?");
-  const result = stmt.get(note_id) as
-    | { id: string; title: string; body: string }
+  const result = stmt.get(id) as
+    | { id: number; title: string; body: string }
     | undefined;
   return result;
-}
+}, "getNote");
 
-export { getDb, getDb as useDb };
+/**
+ * List all notes from the database for the authenticated user
+ */
+const listNotes = query(async function (): Promise<
+  Array<{ id: number; title: string; body: string }>
+> {
+  "use server";
+
+  // Only users should be able to list notes
+  const user = await getUser();
+  if (!user || !user.id) {
+    throw redirect("/login");
+  }
+
+  // Get the db connection
+  const db = await getDb();
+  if (!db) {
+    return [];
+  }
+
+  // Get the notes
+  const stmt = db.prepare("SELECT * FROM notes");
+  const results = stmt.all() as Array<{
+    id: number;
+    title: string;
+    body: string;
+  }>;
+  return results;
+}, "listNotes");
+
+export { getDb, getDb as useDb, getNote, listNotes };

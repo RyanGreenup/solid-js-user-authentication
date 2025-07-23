@@ -1,13 +1,14 @@
 import { createAsync, query, redirect } from "@solidjs/router";
-import { Show } from "solid-js";
+import { createEffect, createSignal, Show, Suspense } from "solid-js";
 import { getUser } from "~/lib/auth";
-import { listNotes } from "~/lib/db";
+import { getNote, listNotes } from "~/lib/db";
+import { RouteGuard } from "~/lib/RouteGuard";
 
 // Loading component
 function LoadingSpinner() {
   return (
-    <main class="text-center mx-auto text-gray-700 p-4">
-      <p>Checking Auth...</p>
+    <main class="flex justify-center items-center p-4">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
     </main>
   );
 }
@@ -32,11 +33,11 @@ const getPageData = query(async function () {
   }
 
   // Execute all queries with the same user_id
-  const notes = await listNotes(user.id);
+  const notes = await listNotes();
   // Add more queries here as needed:
   // const tags = await readTags(user.id);
 
-  return { notes, user };
+  return { content: notes };
 }, "PageData");
 
 export default function Home() {
@@ -46,9 +47,12 @@ export default function Home() {
   // Show is more protective.
   return (
     <main class="text-center mx-auto text-gray-700 p-4">
-      <Show when={pageData()} fallback={<LoadingSpinner />}>
-        <PrivateDataCard data={pageData()?.notes} />
-      </Show>
+      {/*Route Guard only shows page to Authorized Users*/}
+      <RouteGuard>
+        <Suspense fallback=<p>{"Loading Data..."}</p>>
+          <PrivateDataCard data={pageData()?.content} />
+        </Suspense>
+      </RouteGuard>
     </main>
   );
 }
