@@ -1,7 +1,5 @@
-import { createAsync, redirect } from "@solidjs/router";
 import bcrypt from "bcrypt";
 import Database, { Database as DatabaseType } from "better-sqlite3";
-import { JSXElement } from "solid-js";
 import { useSession } from "vinxi/http";
 
 let db: DatabaseType | null = null;
