@@ -60,5 +60,10 @@ export async function register(username: string, password: string) {
 export function getSession() {
   return useSession({
     password: SESSION_SECRET,
+    cookie: {
+      secure: false, // Allow HTTP for VPN/VPC usage
+      httpOnly: true, // Prevent XSS attacks
+      sameSite: "lax", // Moderate CSRF protection
+    },
   });
 }
