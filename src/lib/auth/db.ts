@@ -20,7 +20,29 @@ import { User } from ".";
 
 async function isSudoMode(): Promise<boolean> {
   "use server";
-  return process.env.SUDO_MODE === "true";
+  
+  // Check if SUDO_MODE is explicitly enabled
+  if (process.env.SUDO_MODE !== "true") {
+    return false;
+  }
+  
+  // Check if running in development mode
+  if (process.env.NODE_ENV !== "development") {
+    return false;
+  }
+  
+  // Check if URL is localhost (actual localhost, not DNS tricks)
+  const host = process.env.HOST || "localhost";
+  const isLocalhost = host === "localhost" || 
+                      host === "127.0.0.1" || 
+                      host === "::1" ||
+                      host.startsWith("localhost:");
+  
+  if (!isLocalhost) {
+    return false;
+  }
+  
+  return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
